@@ -14,7 +14,7 @@
 
 // This option makes the iterations faster (all except the first) by caching the 
 // sparsity pattern of the matrix involved in the assembly. It should be on if you plan to do many iterations, off if you have to change the matrix structure at every iteration.
-#define SLIM_CACHED 
+//#define SLIM_CACHED 
 
 #ifdef SLIM_CACHED
 #include <igl/AtA_cached.h>
@@ -29,6 +29,7 @@ struct SLIMData
   // Input
   Eigen::MatrixXd V; // #V by 3 list of mesh vertex positions
   Eigen::MatrixXi F; // #F by 3/3 list of mesh faces (triangles/tets)
+  std::vector<Eigen::MatrixXd> RF;
   enum SLIM_ENERGY
   {
     ARAP,
@@ -44,7 +45,34 @@ struct SLIMData
   // soft constraints
   Eigen::VectorXi b;
   Eigen::MatrixXd bc;
-  double soft_const_p;
+  double soft_const_p = 0;
+  //corner constraints
+  Eigen::VectorXi ids_C;
+  Eigen::MatrixXd C;
+  double lamda_C = 0;
+  //tagent plane constraints
+  Eigen::VectorXi ids_T;
+  Eigen::MatrixXd normal_T;
+  Eigen::VectorXd dis_T;
+  double lamda_T = 0;
+  //feature line constraints
+  uint32_t num_a;
+  Eigen::VectorXi ids_L;
+  Eigen::MatrixXd Axa_L;
+  Eigen::MatrixXd origin_L;
+
+  Eigen::VectorXd a_L;
+  double lamda_L = 0;
+//region
+  Eigen::VectorXi regionb;
+  Eigen::MatrixXd regionbc;
+  double lamda_region = 0;
+//equality constraint
+  std::vector<std::vector<uint32_t>> Vgroups;
+  double lamda_glue = 0;
+
+  bool Projection = false;
+  bool Global = false;
 
   double exp_factor; // used for exponential energies, ignored otherwise
   bool mesh_improvement_3d; // only supported for 3d
@@ -73,12 +101,12 @@ struct SLIMData
   bool has_pre_calc = false;
   int dim;
 
-  #ifdef SLIM_CACHED
+#ifdef SLIM_CACHED
   Eigen::SparseMatrix<double> A;
   Eigen::VectorXi A_data;
   Eigen::SparseMatrix<double> AtA;
   igl::AtA_cached_data AtA_data;
-  #endif
+#endif
 };
 
 // Compute necessary information to start using SLIM
@@ -89,15 +117,20 @@ struct SLIMData
 //    bc          #b by dim list of boundary conditions
 //    soft_p      Soft penalty factor (can be zero)
 //    slim_energy Energy to minimize
-IGL_INLINE void slim_precompute(
-  const Eigen::MatrixXd& V,
-  const Eigen::MatrixXi& F,
-  const Eigen::MatrixXd& V_init,
-  SLIMData& data,
-  SLIMData::SLIM_ENERGY slim_energy,
-  Eigen::VectorXi& b,
-  Eigen::MatrixXd& bc,
-  double soft_p);
+IGL_INLINE void slim_precompute(Eigen::MatrixXd& V,
+                                Eigen::MatrixXi& F,
+                                Eigen::MatrixXd& V_init,
+                                SLIMData& data,
+                                SLIMData::SLIM_ENERGY slim_energy,
+                                Eigen::VectorXi& b,
+                                Eigen::MatrixXd& bc, 
+	Eigen::VectorXi &ids_C_, Eigen::MatrixXd &C_,
+	Eigen::VectorXi &ids_L_, Eigen::MatrixXd &Axa_L_, Eigen::MatrixXd &Origin_L_,
+	Eigen::VectorXi &ids_T_, Eigen::MatrixXd &normal_T_, Eigen::VectorXd &dis_T_, 
+	Eigen::VectorXi &regionb, Eigen::MatrixXd &regionbc,
+	bool surface_projection, bool global_opt,
+	std::vector<Eigen::MatrixXd> RF
+	);
 
 // Run iter_num iterations of SLIM
 // Outputs:

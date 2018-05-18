@@ -137,4 +137,5 @@ IGL_INLINE void igl::procrustes(
 
 #ifdef IGL_STATIC_LIBRARY
 template void igl::procrustes<Eigen::Matrix<double, 3, 2, 0, 3, 2>, Eigen::Matrix<double, 3, 2, 0, 3, 2>, double, Eigen::Matrix<double, 2, 2, 0, 2, 2>, Eigen::Matrix<double, 2, 1, 0, 2, 1> >(Eigen::PlainObjectBase<Eigen::Matrix<double, 3, 2, 0, 3, 2> > const&, Eigen::PlainObjectBase<Eigen::Matrix<double, 3, 2, 0, 3, 2> > const&, bool, bool, double&, Eigen::PlainObjectBase<Eigen::Matrix<double, 2, 2, 0, 2, 2> >&, Eigen::PlainObjectBase<Eigen::Matrix<double, 2, 1, 0, 2, 1> >&);
+template void igl::procrustes<class Eigen::Matrix<double, -1, -1, 0, -1, -1>, class Eigen::Matrix<double, -1, -1, 0, -1, -1>, double, class Eigen::Matrix<double, -1, -1, 0, -1, -1>, class Eigen::Matrix<double, -1, 1, 0, -1, 1> >(class Eigen::PlainObjectBase<class Eigen::Matrix<double, -1, -1, 0, -1, -1> > const &, class Eigen::PlainObjectBase<class Eigen::Matrix<double, -1, -1, 0, -1, -1> > const &, bool, bool, double &, class Eigen::PlainObjectBase<class Eigen::Matrix<double, -1, -1, 0, -1, -1> > &, class Eigen::PlainObjectBase<class Eigen::Matrix<double, -1, 1, 0, -1, 1> > &);
 #endif

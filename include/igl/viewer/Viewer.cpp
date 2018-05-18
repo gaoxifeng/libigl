@@ -154,7 +154,7 @@ static void glfw_window_size(GLFWwindow* window, int width, int height)
   int w = width*highdpi;
   int h = height*highdpi;
 
-  __viewer->post_resize(w, h);
+  __viewer->resize(w, h);
 
   // TODO: repositioning of the nanogui
 }
@@ -205,81 +205,91 @@ namespace viewer
     ngui->setFixedSize(Eigen::Vector2i(60,20));
 
     // Create nanogui widgets
-    /* nanogui::Window *window = */ ngui->addWindow(Eigen::Vector2i(10,10),"libIGL-Viewer");
-
+    nanogui::Window *window = ngui->addWindow(Eigen::Vector2i(10,10),"");
     // ---------------------- LOADING ----------------------
 
   #ifdef ENABLE_SERIALIZATION
-    ngui->addGroup("Workspace");
-    ngui->addButton("Load",[&](){this->load_scene();});
-    ngui->addButton("Save",[&](){this->save_scene();});
+    //ngui->addGroup("Workspace");
+    //ngui->addButton("Load",[&](){this->load_scene();});
+    //ngui->addButton("Save",[&](){this->save_scene();});
   #endif
 
   #ifdef ENABLE_IO
-    ngui->addGroup("Mesh");
-    ngui->addButton("Load",[&](){this->open_dialog_load_mesh();});
-    ngui->addButton("Save",[&](){this->open_dialog_save_mesh();});
+    //ngui->addGroup("Mesh");
+    //ngui->addButton("Load",[&](){this->open_dialog_load_mesh();});
+    //ngui->addButton("Save",[&](){this->open_dialog_save_mesh();});
   #endif
 
-    ngui->addGroup("Viewing Options");
-    ngui->addButton("Center object",[&](){this->core.align_camera_center(this->data.V,this->data.F);});
-    ngui->addButton("Snap canonical view",[&]()
-    {
-      this->snap_to_canonical_quaternion();
-    });
-    ngui->addVariable("Zoom", core.camera_zoom);
-    ngui->addVariable("Orthographic view", core.orthographic);
+	core.init();
 
-    ngui->addGroup("Draw options");
+	if (callback_init)
+		if (callback_init(*this))
+			return;
 
-    ngui->addVariable<bool>("Face-based", [&](bool checked)
-    {
-      this->data.set_face_based(checked);
-    },[&]()
-    {
-      return this->data.face_based;
-    });
+	nanogui::PopupButton *VBtn = new nanogui::PopupButton(ngui->window(), "Basic Render");
+	ngui->addWidget("", VBtn);
+	nanogui::Popup *VPopup = VBtn->popup();
+	VPopup->setAnchorHeight(61);
+	VPopup->setLayout(new nanogui::GroupLayout());
 
-    ngui->addVariable("Show texture",core.show_texture);
+	nanogui::Button *CenterobjectBtn = new nanogui::Button(VPopup, "Center-object", ENTYPO_ICON_FLASH);
+	CenterobjectBtn->setFlags(nanogui::Button::Flags::ToggleButton);
+	CenterobjectBtn->setChangeCallback([&](bool value) {
+		this->core.align_camera_center(this->data.V, this->data.F);
+	});
+	//nanogui::Button *CanonicalViewBtn = new nanogui::Button(VPopup, "Canonical-view", ENTYPO_ICON_FLASH);
+	//CanonicalViewBtn->setFlags(nanogui::Button::Flags::ToggleButton);
+	//CanonicalViewBtn->setChangeCallback([&](bool value) {
+	//	this->snap_to_canonical_quaternion();
+	//});
+	
+//	new nanogui::Label(VPopup, "Draw options", "sans-bold");
 
-    ngui->addVariable<bool>("Invert normals",[&](bool checked)
-    {
-      this->data.dirty |= ViewerData::DIRTY_NORMAL;
-      this->core.invert_normals = checked;
-    },[&]()
-    {
-      return this->core.invert_normals;
-    });
+	nanogui::CheckBox *FacebasedCBox = new CheckBox(VPopup, "Face");
+	FacebasedCBox->setChecked(false);
+	FacebasedCBox->setCallback([&](bool checked){
+		this->data.set_face_based(checked);
+	});
 
-    ngui->addVariable("Show overlay", core.show_overlay);
-    ngui->addVariable("Show overlay depth", core.show_overlay_depth);
-    ngui->addVariable("Background", (nanogui::Color &) core.background_color);
-    ngui->addVariable("Line color", (nanogui::Color &) core.line_color);
-    ngui->addVariable("Shininess", core.shininess);
+	nanogui::CheckBox *OverlayDepthCBox = new CheckBox(VPopup, "Overlay depth");
+	OverlayDepthCBox->setChecked(core.show_overlay_depth);
+	OverlayDepthCBox->setCallback([&](bool checked) {
+		this->core.show_overlay_depth = checked;
+	});
 
-    ngui->addGroup("Overlays");
-    ngui->addVariable("Wireframe", core.show_lines);
-    ngui->addVariable("Fill", core.show_faces);
-    ngui->addVariable("Show vertex labels", core.show_vertid);
-    ngui->addVariable("Show faces labels", core.show_faceid);
-
+	//new nanogui::Label(VPopup, "Overlays", "sans-bold");
+	nanogui::CheckBox *VIDsCBox = new CheckBox(VPopup, "Vertex labels");
+	VIDsCBox->setChecked(core.show_vertid);
+	VIDsCBox->setCallback([&](bool checked) {
+		this->core.show_vertid = checked;
+	});
+	nanogui::CheckBox *FIDsCBox = new CheckBox(VPopup, "Faces labels");
+	FIDsCBox->setChecked(core.show_faceid);
+	FIDsCBox->setCallback([&](bool checked) {
+		this->core.show_faceid = checked;
+	});
+	nanogui::CheckBox *WireframeCBox = new CheckBox(VPopup, "Wireframe");
+	this->core.show_lines = false;
+	WireframeCBox->setChecked(this->core.show_lines);
+	WireframeCBox->setCallback([&](bool checked) {
+		this->core.show_lines = checked;
+	});
+	nanogui::CheckBox *FillCBox = new CheckBox(VPopup, "Fill");
+	FillCBox->setChecked(core.show_faces);
+	FillCBox->setCallback([&](bool checked) {
+		this->core.show_faces = checked;
+	});
     screen->setVisible(true);
     screen->performLayout();
+
+
 #endif
-
-    core.init();
-
-    if (callback_init)
-      if (callback_init(*this))
-        return;
 
     init_plugins();
   }
 
   IGL_INLINE Viewer::Viewer()
   {
-    window = nullptr;
-
 #ifdef IGL_VIEWER_WITH_NANOGUI
     ngui = nullptr;
     screen = nullptr;
@@ -324,15 +334,15 @@ namespace viewer
   O,o     Toggle orthographic/perspective projection
   T,t     Toggle filled faces
   Z       Snap to canonical view
-  [,]     Toggle between rotation control types (trackball, two-axis
-          valuator with fixed up, 2D mode with no rotation))"
+  [,]     Toggle between rotation control types (e.g. trackball, two-axis
+          valuator with fixed up))"
 #ifdef IGL_VIEWER_WITH_NANOGUI
 		R"(
   ;       Toggle vertex labels
   :       Toggle face labels)"
 #endif
 );
-    std::cout<<usage<<std::endl;
+  //  std::cout<<usage<<std::endl;
 #endif
   }
 
@@ -539,10 +549,13 @@ namespace viewer
       case ']':
       {
         if(core.rotation_type == ViewerCore::ROTATION_TYPE_TRACKBALL)
-          core.set_rotation_type(ViewerCore::ROTATION_TYPE_TWO_AXIS_VALUATOR_FIXED_UP);
-        else
+        {
+          core.set_rotation_type(
+            ViewerCore::ROTATION_TYPE_TWO_AXIS_VALUATOR_FIXED_UP);
+        }else
+        {
           core.set_rotation_type(ViewerCore::ROTATION_TYPE_TRACKBALL);
-
+        }
         return true;
       }
 #ifdef IGL_VIEWER_WITH_NANOGUI
@@ -625,11 +638,7 @@ namespace viewer
     switch (button)
     {
       case MouseButton::Left:
-        if (core.rotation_type == ViewerCore::ROTATION_TYPE_NO_ROTATION) {
-          mouse_mode = MouseMode::Translation;
-        } else {
-          mouse_mode = MouseMode::Rotation;
-        }
+        mouse_mode = MouseMode::Rotation;
         break;
 
       case MouseButton::Right:
@@ -690,8 +699,6 @@ namespace viewer
           {
             default:
               assert(false && "Unknown rotation type");
-            case ViewerCore::ROTATION_TYPE_NO_ROTATION:
-              break;
             case ViewerCore::ROTATION_TYPE_TRACKBALL:
               igl::trackball(
                 core.viewport(2),
@@ -772,20 +779,6 @@ namespace viewer
     using namespace std;
     using namespace Eigen;
 
-    int width, height;
-    glfwGetFramebufferSize(window, &width, &height);
-
-    int width_window, height_window;
-    glfwGetWindowSize(window, &width_window, &height_window);
-
-    auto highdpi_tmp = width/width_window;
-
-    if(fabs(highdpi_tmp-highdpi)>1e-8)
-    {
-      post_resize(width, height);
-      highdpi=highdpi_tmp;
-    }
-
     core.clear_framebuffers();
 
     if (callback_pre_draw)
@@ -807,7 +800,6 @@ namespace viewer
         break;
 
 #ifdef IGL_VIEWER_WITH_NANOGUI
-	ngui->refresh();
 	screen->drawContents();
 	screen->drawWidgets();
 #endif
@@ -862,19 +854,7 @@ namespace viewer
 
   IGL_INLINE void Viewer::resize(int w,int h)
   {
-    if (window) {
-      glfwSetWindowSize(window, w/highdpi, h/highdpi);
-    }
-    post_resize(w, h);
-  }
-
-  IGL_INLINE void Viewer::post_resize(int w,int h)
-  {
     core.viewport = Eigen::Vector4f(0,0,w,h);
-    for (unsigned int i = 0; i<plugins.size(); ++i)
-    {
-      plugins[i]->post_resize(w, h);
-    }
   }
 
   IGL_INLINE void Viewer::snap_to_canonical_quaternion()
@@ -923,15 +903,12 @@ namespace viewer
     {
       GLFWmonitor *monitor = glfwGetPrimaryMonitor();
       const GLFWvidmode *mode = glfwGetVideoMode(monitor);
-      window = glfwCreateWindow(mode->width,mode->height,"libigl viewer",monitor,nullptr);
+      window = glfwCreateWindow(mode->width,mode->height,"Robust Pure Hex-Meshing",monitor,nullptr);
     }
     else
     {
-      if (core.viewport.tail<2>().any()) {
-        window = glfwCreateWindow(core.viewport(2),core.viewport(3),"libigl viewer",nullptr,nullptr);
-      } else {
-        window = glfwCreateWindow(1280,800,"libigl viewer",nullptr,nullptr);
-      }
+		//window = glfwCreateWindow(1280,800,"Robust Pure Hex-Meshing",nullptr,nullptr);
+	  window = glfwCreateWindow(1920, 1080, "Robust Pure Hex-Meshing", nullptr, nullptr);
     }
 
     if (!window)
@@ -950,7 +927,7 @@ namespace viewer
         /* Problem: glewInit failed, something is seriously wrong. */
        fprintf(stderr, "Error: %s\n", glewGetErrorString(err));
       }
-      glGetError(); // pull and safely ignore unhandled errors like GL_INVALID_ENUM
+      glGetError(); // pull and savely ignonre unhandled errors like GL_INVALID_ENUM
       fprintf(stdout, "Status: Using GLEW %s\n", glewGetString(GLEW_VERSION));
     #endif
 
@@ -959,7 +936,7 @@ namespace viewer
       major = glfwGetWindowAttrib(window, GLFW_CONTEXT_VERSION_MAJOR);
       minor = glfwGetWindowAttrib(window, GLFW_CONTEXT_VERSION_MINOR);
       rev = glfwGetWindowAttrib(window, GLFW_CONTEXT_REVISION);
-      printf("OpenGL version received: %d.%d.%d\n", major, minor, rev);
+      printf("OpenGL version recieved: %d.%d.%d\n", major, minor, rev);
       printf("Supported OpenGL is %s\n", (const char*)glGetString(GL_VERSION));
       printf("Supported GLSL is %s\n", (const char*)glGetString(GL_SHADING_LANGUAGE_VERSION));
     #endif

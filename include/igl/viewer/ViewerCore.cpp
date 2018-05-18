@@ -14,9 +14,9 @@
 #include <igl/ortho.h>
 #include <igl/massmatrix.h>
 #include <igl/barycenter.h>
-#include <igl/PI.h>
 #include <Eigen/Geometry>
 #include <iostream>
+#include <iomanip>
 
 IGL_INLINE void igl::viewer::ViewerCore::align_camera_center(
   const Eigen::MatrixXd& V,
@@ -75,11 +75,12 @@ IGL_INLINE void igl::viewer::ViewerCore::get_scale_and_shift_to_fit_mesh(
   if (V.rows() == 0)
     return;
 
-  auto min_point = V.colwise().minCoeff();
-  auto max_point = V.colwise().maxCoeff();
-  auto centroid  = (0.5*(min_point + max_point)).eval();
+  auto min_point = V.colwise().minCoeff().eval();
+  auto max_point = V.colwise().maxCoeff().eval();
+ //auto centroid  = 0.5*(min_point + max_point).eval();
+  auto centroid = 0.5*(min_point + max_point);
   shift.setConstant(0);
-  shift.head(centroid.size()) = -centroid.cast<float>();
+  shift.head(centroid.size())= -centroid.cast<float>();
   zoom = 2.0 / (max_point-min_point).array().abs().maxCoeff();
 }
 
@@ -136,12 +137,12 @@ IGL_INLINE void igl::viewer::ViewerCore::draw(
     if (orthographic)
     {
       float length = (camera_eye - camera_center).norm();
-      float h = tan(camera_view_angle/360.0 * igl::PI) * (length);
+      float h = tan(camera_view_angle/360.0 * M_PI) * (length);
       ortho(-h*width/height, h*width/height, -h, h, camera_dnear, camera_dfar,proj);
     }
     else
     {
-      float fH = tan(camera_view_angle / 360.0 * igl::PI) * camera_dnear;
+      float fH = tan(camera_view_angle / 360.0 * M_PI) * camera_dnear;
       float fW = fH * (double)width/(double)height;
       frustum(-fW, fW, -fH, fH, camera_dnear, camera_dfar,proj);
     }
@@ -227,11 +228,61 @@ IGL_INLINE void igl::viewer::ViewerCore::draw(
       }
       textrenderer.EndDraw();
     }
+
+	if (show_measurements)
+	{
+		stringstream stream;
+
+		textrenderer.BeginDraw(view*model, proj, viewport, object_scale);
+		double scalex = 0.8 * viewport[2] / 1920.0, scaley = 0.8 * viewport[3] / 1080.0;
+		//scalex = 1; scaley = 1;
+
+		textrenderer.setFontsize(32 * scalex);
+		int x = 20 * scalex, y = 50 * scaley, xi = 320 * scalex, yi = 30 * scaley;
+		textrenderer.DrawText(x, y, "Minimum Scaled Jacobian: ");
+		stream << fixed << setprecision(2) << data.minSJ;
+		string s = stream.str();
+		textrenderer.DrawText(x + xi, y, s);
+
+		textrenderer.DrawText(x, y + yi, "Average Scaled Jacobian: ");
+		stream.str("");
+		stream << fixed << setprecision(2) << data.aveSJ;
+		s = stream.str();
+		textrenderer.DrawText(x + xi, y + yi, s);
+
+		textrenderer.DrawText(x, y + 2 * yi, "Std. Deviation of S.J.(%): ");
+		stream.str("");
+		stream << fixed << setprecision(2) << data.devSJ * 100;
+		s = stream.str();
+		textrenderer.DrawText(x + xi, y + 2*yi, s);
+		
+		textrenderer.DrawText(x, y + 3 * yi, "Reduced Component R.(%): ");
+		stream.str("");
+		stream << fixed << setprecision(2) << data.simplification_r;
+		s = stream.str();
+		textrenderer.DrawText(x + xi, y + 3 * yi, s);
+
+		textrenderer.DrawText(x, y + 4 * yi, "Hausdorff Distance R.(%): ");
+		stream.str("");
+		stream << fixed << setprecision(2) << data.Hausdorff * 100;
+		s = stream.str();
+		textrenderer.DrawText(x + xi, y + 4 * yi, s);
+
+		textrenderer.DrawHistogram(x + 1.3*xi, y, 4 * yi + 20, "#Hex", "S.J.", data.SJs);
+
+		if (show_progress && data.Components.size())
+			//textrenderer.DrawProgress(x + 1.95*xi, y, 4 * yi + 20, 4 * yi + 20, "#BC", "Step", data.cur_pos, data.Components, data.Timings);
+			textrenderer.DrawProgress(x, y + 6 * yi, 4 * yi + 20, 4 * yi + 20, "#BC", "Step", data.cur_pos, data.Components, data.Timings);
+
+		textrenderer.EndDraw();
+	}
 #endif
   }
 
   if (show_overlay)
   {
+	  glViewport(viewport(0), viewport(1), viewport(2), viewport(3));
+
     if (show_overlay_depth)
       glEnable(GL_DEPTH_TEST);
     else
@@ -247,9 +298,13 @@ IGL_INLINE void igl::viewer::ViewerCore::draw(
       glUniformMatrix4fv(modeli, 1, GL_FALSE, model.data());
       glUniformMatrix4fv(viewi, 1, GL_FALSE, view.data());
       glUniformMatrix4fv(proji, 1, GL_FALSE, proj.data());
+	  //use textrender will disable this two command, so I reopened them here for line antiliasing
+	  glEnable(GL_BLEND);
+	  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
       // This must be enabled, otherwise glLineWidth has no effect
       glEnable(GL_LINE_SMOOTH);
       glLineWidth(line_width);
+	  
 
       opengl.draw_overlay_lines();
     }
@@ -428,13 +483,13 @@ IGL_INLINE igl::viewer::ViewerCore::ViewerCore()
   show_texture = false;
   depth_test = true;
 
+  show_measurements = true;
+
   // Default point size / line width
   point_size = 30;
   line_width = 0.5f;
   is_animating = false;
   animation_max_fps = 30.;
-
-  viewport.setZero();
 }
 
 IGL_INLINE void igl::viewer::ViewerCore::init()
