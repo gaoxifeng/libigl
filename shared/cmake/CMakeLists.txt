@@ -164,6 +164,7 @@ if(LIBIGL_WITH_CGAL) # to be cleaned
   # set(Boost_USE_STATIC_LIBS      ON)
   #
   # find_package(BOOST REQUIRED)
+  set(CGAL_DONT_OVERRIDE_CMAKE_FLAGS TRUE CACHE BOOL "CGAL's CMAKE Setup is super annoying ")
   include(${CGAL_USE_FILE})
   list(APPEND LIBIGL_INCLUDE_DIRS ${CGAL_3RD_PARTY_INCLUDE_DIRS})
   list(APPEND LIBIGL_INCLUDE_DIRS ${CGAL_INCLUDE_DIRS})
@@ -305,14 +306,19 @@ endif()
 
 ### Compile the matlab part ###
 if(LIBIGL_WITH_MATLAB)
-  find_package(MATLAB REQUIRED)
-  list(APPEND LIBIGL_INCLUDE_DIRS ${MATLAB_INCLUDE_DIR})
-  list(APPEND LIBIGL_MATLAB_EXTRA_LIBRARIES ${MATLAB_LIBRARIES})
+  find_package(Matlab REQUIRED)
+  list(APPEND LIBIGL_INCLUDE_DIRS ${Matlab_INCLUDE_DIRS})
+  list(APPEND LIBIGL_MATLAB_EXTRA_LIBRARIES 
+    ${Matlab_MEX_LIBRARY}
+    ${Matlab_MX_LIBRARY}
+    ${Matlab_MAT_LIBRARY}
+    ${Matlab_ENG_LIBRARY}
+    )
   list(APPEND LIBIGL_EXTRA_LIBRARIES ${LIBIGL_MATLAB_EXTRA_LIBRARIES})
 
   if(LIBIGL_USE_STATIC_LIBRARY)
     CompileIGL_Module("matlab" "")
-    target_include_directories(igl_matlab PRIVATE ${MATLAB_INCLUDE_DIR})
+    target_include_directories(igl_matlab PRIVATE ${Matlab_INCLUDE_DIRS})
   endif()
 endif()
 
